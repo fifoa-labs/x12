@@ -1,0 +1,105 @@
+[project]
+name = "ansi-x12"
+version = "0.1.0"
+description = "A small, framework-independent structural parser for ANSI X12 interchange documents."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Fifoa Labs", email = "labs@fifoa.com" },
+]
+keywords = [
+    "ansi-x12",
+    "edi",
+    "parser",
+    "x12",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/fifoa-labs/x12"
+Repository = "https://github.com/fifoa-labs/x12"
+Issues = "https://github.com/fifoa-labs/x12/issues"
+
+[build-system]
+requires = ["uv_build>=0.11.29,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "x12"
+
+[dependency-groups]
+dev = [
+    "build>=1.5.0",
+    "mypy>=2.3.0",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "pytest-xdist>=3.8.0",
+    "ruff>=0.16.1",
+    "twine>=7.0.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = [
+    "--strict-config",
+    "--strict-markers",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["x12"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+fail_under = 100
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+  "F", "E", "W", "C90", "I", "N", "UP", "YTT", "ASYNC", "S", "BLE",
+  "FBT", "B", "A", "COM", "C4", "DTZ", "T10", "DJ", "EM", "EXE",
+  "FA", "ISC", "ICN", "G", "INP", "PIE", "T20", "PYI", "PT", "Q",
+  "RSE", "RET", "SLF", "SLOT", "SIM", "TID", "TCH", "INT", "PTH",
+  "ERA", "PD", "PGH", "PL", "TRY", "FLY", "PERF", "RUF",
+]
+ignore = [
+  "S101",
+  "RUF012",
+  "SIM102",
+  "COM812",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "ANN",
+    "PLR2004",
+    "S101",
+]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = [
+    "src",
+    "tests",
+]
