@@ -1,5 +1,12 @@
 # x12
 
+[![PyPI
+version](https://img.shields.io/pypi/v/ansi-x12.svg)](https://pypi.org/project/ansi-x12/)
+[![Python
+versions](https://img.shields.io/pypi/pyversions/ansi-x12.svg)](https://pypi.org/project/ansi-x12/)
+[![CI](https://github.com/fifoa-labs/x12/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/fifoa-labs/x12/actions/workflows/ci.yml)
+[![License](https://img.shields.io/pypi/l/ansi-x12.svg)](https://github.com/fifoa-labs/x12/blob/main/LICENSE)
+
 A small, framework-independent Python library for lossless structural
 parsing of ANSI X12 Electronic Data Interchange documents.
 
@@ -7,24 +14,27 @@ parsing of ANSI X12 Electronic Data Interchange documents.
 validates envelope structure, and produces immutable inspection
 summaries without interpreting transaction-specific business meaning.
 
+## Project
+
+-   **PyPI:** https://pypi.org/project/ansi-x12/
+-   **Source:** https://github.com/fifoa-labs/x12
+-   **License:** MIT
+
 ## Status
 
 `ansi-x12` is actively maintained and publicly available on PyPI.
 
-- **PyPI:** https://pypi.org/project/ansi-x12/
-- **Source:** https://github.com/fifoa-labs/x12
+-   **PyPI:** https://pypi.org/project/ansi-x12/
+-   **Source:** https://github.com/fifoa-labs/x12
 
 Install the latest release:
 
-```bash
+``` bash
 pip install ansi-x12
 ```
 
-Import it in Python:
-
-``` python
-import x12
-```
+The distribution name is `ansi-x12`, while the Python import package is
+`x12`.
 
 The current release provides the structural layer of ANSI X12:
 
@@ -610,7 +620,7 @@ The test suite covers:
 -   package public API exports
 -   wheel-safe type metadata
 
-Current release quality:
+Current release quality (v0.1.2):
 
 ``` text
 456 tests passed
