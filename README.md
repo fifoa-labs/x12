@@ -11,12 +11,12 @@ summaries without interpreting transaction-specific business meaning.
 
 `ansi-x12` is actively maintained and publicly available on PyPI.
 
-**PyPI:** https://pypi.org/project/ansi-x12/\
-**Source:** https://github.com/fifoa-labs/x12
+- **PyPI:** https://pypi.org/project/ansi-x12/
+- **Source:** https://github.com/fifoa-labs/x12
 
 Install the latest release:
 
-``` bash
+```bash
 pip install ansi-x12
 ```
 
