@@ -1,6 +1,4 @@
-# x12
-
-# x12
+# ansi-x12
 
 [![PyPI version](https://img.shields.io/pypi/v/ansi-x12.svg)](https://pypi.org/project/ansi-x12/)
 [![Python versions](https://img.shields.io/pypi/pyversions/ansi-x12.svg)](https://pypi.org/project/ansi-x12/)
@@ -11,9 +9,9 @@
 A small, framework-independent Python library for lossless structural
 parsing of ANSI X12 Electronic Data Interchange documents.
 
-`x12` discovers interchange separators, tokenizes raw messages,
-validates envelope structure, and produces immutable inspection
-summaries without interpreting transaction-specific business meaning.
+`x12` discovers interchange separators, tokenizes ANSI X12 messages,
+validates interchange envelope structure,and produces immutable inspection models
+without interpreting transaction-specific business semantics.
 
 ## Project
 
