@@ -1,5 +1,5 @@
 """
-atlas/appstore/railroads/x12/parser.py
+src/x12/parser.py
 
 Parse tokenized ANSI X12 documents into validated interchange envelopes.
 """
