@@ -74,7 +74,13 @@ coverage: ## Run tests with branch coverage
 
 check: format-check lint typecheck test ## Run all local validation checks
 
-ci: lint typecheck coverage build check-dist ## Run the complete CI validation pipeline
+ci: ## Run the complete CI validation pipeline
+	$(MAKE) format-check
+	$(MAKE) lint
+	$(MAKE) typecheck
+	$(MAKE) coverage
+	$(MAKE) build
+	$(MAKE) check-dist
 
 # ============================================
 # 🏗️ BUILD / PACKAGE VALIDATION
@@ -108,15 +114,29 @@ install-wheel: ## Install the built wheel into a temporary clean environment
 	fi; \
 	rm -rf /tmp/$(PACKAGE)-wheel-test; \
 	uv venv /tmp/$(PACKAGE)-wheel-test; \
-	/tmp/$(PACKAGE)-wheel-test/bin/python -m pip install "$$wheel"; \
+	uv pip install \
+		--python /tmp/$(PACKAGE)-wheel-test/bin/python \
+		"$$wheel"; \
 	/tmp/$(PACKAGE)-wheel-test/bin/python -c \
-		'import x12; print("Installed:", x12.__file__)'; \
+		'import x12; from importlib.metadata import version; print("Installed:", version("ansi-x12"), x12.__file__)'; \
 	rm -rf /tmp/$(PACKAGE)-wheel-test
 
-release-check: clean check coverage build check-dist ## Run full release validation
-	@wheel="$$(find dist -maxdepth 1 -name '*.whl' -print -quit)"; \
+release-check: ## Run full release validation
+	$(MAKE) clean
+	$(MAKE) format-check
+	$(MAKE) lint
+	$(MAKE) typecheck
+	$(MAKE) coverage
+	$(MAKE) build
+	$(MAKE) check-dist
+	@wheel="$$(find "$(DIST_DIR)" -maxdepth 1 -name '*.whl' -print -quit)"; \
+	if [ -z "$$wheel" ]; then \
+		echo "No wheel found after build."; \
+		exit 1; \
+	fi; \
 	unzip -l "$$wheel" | grep -q "x12/py.typed"; \
 	echo "✅ Wheel contains x12/py.typed"
+	$(MAKE) install-wheel
 
 # ============================================
 # 🧼 CLEANUP
@@ -179,17 +199,23 @@ tree: ## List files under <folder>: make tree [folder=<folder>]
 		-not -path "*/venv/*" \
 		-not -path "*/dist/*" \
 		-not -path "*/build/*" \
+		-not -path "*/.hypothesis/*" \
 		-not -path "*/.mypy_cache/*" \
 		-not -path "*/.ruff_cache/*" \
 		-not -path "*/.pytest_cache/*" \
 		-not -path "*/__pycache__/*" \
+		-not -path "*.egg-info/*" \
+		-not -name ".coverage" \
+		-not -name ".coverage.*" \
+		-not -name "coverage.xml" \
 		-not -name "*.pyc" \
+		-not -name "*.pyo" \
 		-not -name "*.DS_Store" \
 		| sed 's|^\./||' \
 		| sort
 
 # ============================================
-# 🧩 HELP / FALLBACK
+# 🧩 HELP
 # --------------------------------------------
 
 .PHONY: help
@@ -198,7 +224,3 @@ help: ## Show this help
 	@echo "Available make targets:"
 	@grep -E '^[a-zA-Z0-9_\-]+:.*?##' $(MAKEFILE_LIST) | \
 		sort | awk 'BEGIN {FS = ":.*?##"} {printf "  %-22s %s\n", $$1, $$2}'
-
-# Fallback: ignore unknown goals so "make app foo" works
-%:
-	@:

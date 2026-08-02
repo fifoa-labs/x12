@@ -1,35 +1,38 @@
 """
-tests/test_init.py
+tests/test_public_api.py
 
 Tests for the public :mod:`x12` package API.
 """
 
 from __future__ import annotations
 
+import inspect
+from typing import get_type_hints
+
 import x12
-from x12.envelopes import (
+from x12.core.envelopes import (
     X12FunctionalGroup,
     X12Interchange,
     X12TransactionSet,
 )
-from x12.exceptions import (
+from x12.core.exceptions import (
     X12EnvelopeError,
     X12Error,
     X12SegmentError,
     X12SeparatorError,
     X12TokenizerError,
 )
-from x12.inspection import (
+from x12.core.inspection import (
     X12FunctionalGroupInspection,
     X12InspectionResult,
     X12SegmentFrequency,
     X12TransactionInspection,
 )
-from x12.inspector import inspect_x12_interchange
-from x12.parser import parse_x12_interchange
-from x12.segments import X12Document, X12Segment
-from x12.separators import X12Separators, derive_x12_separators
-from x12.tokenizer import tokenize_x12
+from x12.core.inspector import inspect_x12_interchange
+from x12.core.parser import parse_x12_interchange
+from x12.core.segments import X12Document, X12Segment
+from x12.core.separators import X12Separators, derive_x12_separators
+from x12.core.tokenizer import tokenize_x12
 
 EXPECTED_PUBLIC_API = {
     "X12Document",
@@ -116,3 +119,12 @@ def test_every_declared_public_name_exists() -> None:
 def test_declared_public_names_do_not_include_private_names() -> None:
     """The public API should not expose private-style names."""
     assert all(not name.startswith("_") for name in x12.__all__)
+
+
+def test_public_annotations_are_runtime_resolvable() -> None:
+    """Public annotations should resolve through ``typing.get_type_hints``."""
+    for name in x12.__all__:
+        public_object = getattr(x12, name)
+
+        if inspect.isclass(public_object) or inspect.isfunction(public_object):
+            get_type_hints(public_object)

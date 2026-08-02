@@ -1,5 +1,5 @@
 """
-src/x12/tokenizer.py
+src/x12/core/tokenizer.py
 
 Lossless structural tokenization for ANSI X12 interchange documents.
 """

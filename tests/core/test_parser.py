@@ -1,5 +1,5 @@
 """
-tests/test_parser.py
+tests/core/test_parser.py
 
 Tests for ANSI X12 interchange envelope parsing and validation.
 
@@ -17,12 +17,12 @@ from __future__ import annotations
 
 import pytest
 
-from x12.envelopes import X12Interchange
-from x12.exceptions import X12EnvelopeError
-from x12.parser import parse_x12_interchange
-from x12.segments import X12Document, X12Segment
-from x12.separators import ISA_SEGMENT_LENGTH, X12Separators
-from x12.tokenizer import tokenize_x12
+from x12.core.envelopes import X12Interchange
+from x12.core.exceptions import X12EnvelopeError
+from x12.core.parser import parse_x12_interchange
+from x12.core.segments import X12Document, X12Segment
+from x12.core.separators import ISA_SEGMENT_LENGTH, X12Separators
+from x12.core.tokenizer import tokenize_x12
 
 INTERCHANGE_CONTROL_NUMBER = b"000000001"
 GROUP_CONTROL_NUMBER = b"1"
@@ -309,27 +309,83 @@ def test_parse_multiple_functional_groups() -> None:
     )
 
 
-def test_parse_allows_empty_functional_group() -> None:
-    """A declared empty group should produce an empty transaction tuple."""
+def test_parse_rejects_empty_functional_group() -> None:
+    """A functional group must contain at least one transaction set."""
     payload = build_payload(
         b"GS*XX*SENDER01*RECEIVER01*20260101*1200*1*X*007050~",
         b"GE*0*1~",
     )
 
-    interchange = parse_x12_interchange(tokenize_x12(payload))
+    with pytest.raises(
+        X12EnvelopeError,
+        match="must contain at least one transaction set",
+    ):
+        parse_x12_interchange(tokenize_x12(payload))
 
-    assert interchange.groups[0].transactions == ()
-    assert interchange.groups[0].actual_transaction_count == 0
 
-
-def test_parse_allows_interchange_without_groups() -> None:
-    """A zero-count interchange should parse without functional groups."""
-    payload = build_payload(declared_group_count=b"0")
+def test_parse_allows_ta1_only_interchange() -> None:
+    """An interchange acknowledgment may appear without a functional group."""
+    payload = build_payload(
+        b"TA1*000000002*260101*1200*A*000~",
+        declared_group_count=b"0",
+    )
 
     interchange = parse_x12_interchange(tokenize_x12(payload))
 
     assert interchange.groups == ()
     assert interchange.actual_group_count == 0
+    assert tuple(segment.tag for segment in interchange.interchange_segments) == (
+        "TA1",
+    )
+    assert interchange.all_segments == interchange.document.segments
+
+
+def test_parse_allows_multiple_ta1_segments() -> None:
+    """An interchange may contain multiple ordered acknowledgments."""
+    payload = build_payload(
+        b"TA1*000000002*260101*1200*A*000~",
+        b"TA1*000000003*260101*1201*R*001~",
+        declared_group_count=b"0",
+    )
+
+    interchange = parse_x12_interchange(tokenize_x12(payload))
+
+    assert tuple(
+        segment.element(1) for segment in interchange.interchange_segments
+    ) == (
+        b"000000002",
+        b"000000003",
+    )
+
+
+def test_parse_allows_ta1_before_functional_group() -> None:
+    """A TA1 acknowledgment may precede functional groups in one interchange."""
+    payload = build_payload(
+        b"TA1*000000002*260101*1200*A*000~",
+        b"GS*XX*SENDER01*RECEIVER01*20260101*1200*1*X*007050~",
+        b"ST*999*0001~",
+        b"SE*2*0001~",
+        b"GE*1*1~",
+    )
+
+    interchange = parse_x12_interchange(tokenize_x12(payload))
+
+    assert len(interchange.interchange_segments) == 1
+    assert interchange.actual_group_count == 1
+
+
+def test_parse_rejects_empty_interchange() -> None:
+    """An interchange needs at least one TA1 acknowledgment or group."""
+    payload = build_payload(declared_group_count=b"0")
+
+    with pytest.raises(
+        X12EnvelopeError,
+        match=(
+            "X12 interchange must contain at least one TA1 interchange "
+            "acknowledgment or functional group"
+        ),
+    ):
+        parse_x12_interchange(tokenize_x12(payload))
 
 
 def test_parse_requires_isa_as_first_segment() -> None:
@@ -361,7 +417,7 @@ def test_parse_requires_iea_as_last_segment() -> None:
 
 
 def test_parse_rejects_unexpected_segment_between_isa_and_group() -> None:
-    """Only GS or IEA may immediately follow the interchange header."""
+    """An unrelated segment cannot appear at interchange scope."""
     document = build_document_from_segments(
         valid_isa_segment(index=0),
         make_segment(1, "N1", b"SH", b"SAMPLE-PARTY"),
@@ -387,6 +443,25 @@ def test_parse_rejects_segment_after_early_iea() -> None:
     with pytest.raises(
         X12EnvelopeError,
         match="Unexpected segment 'N1' appears after IEA at segment index 2",
+    ):
+        parse_x12_interchange(document)
+
+
+def test_parse_rejects_ta1_after_functional_group() -> None:
+    """TA1 acknowledgments must precede any functional groups."""
+    document = build_document_from_segments(
+        valid_isa_segment(index=0),
+        valid_gs_segment(index=1),
+        make_segment(2, "ST", *ST_ELEMENTS),
+        make_segment(3, "SE", *SE_ELEMENTS),
+        make_segment(4, "GE", *GE_ELEMENTS),
+        make_segment(5, "TA1", b"000000002", b"260101", b"1200", b"A", b"000"),
+        make_segment(6, "IEA", *IEA_ELEMENTS),
+    )
+
+    with pytest.raises(
+        X12EnvelopeError,
+        match="Expected GS or IEA at segment index 5, found 'TA1'",
     ):
         parse_x12_interchange(document)
 
@@ -433,6 +508,7 @@ def test_parse_rejects_functional_group_without_ge() -> None:
     "nested_tag",
     [
         "ISA",
+        "TA1",
         "GS",
         "ST",
         "GE",
@@ -506,8 +582,6 @@ def test_parse_rejects_body_segment_after_completed_transaction() -> None:
         ("ISA", (*ISA_ELEMENTS, b"EXTRA"), 16),
         ("GS", GS_ELEMENTS[:-1], 8),
         ("GS", (*GS_ELEMENTS, b"EXTRA"), 8),
-        ("ST", ST_ELEMENTS[:-1], 2),
-        ("ST", (*ST_ELEMENTS, b"EXTRA"), 2),
         ("SE", SE_ELEMENTS[:-1], 2),
         ("SE", (*SE_ELEMENTS, b"EXTRA"), 2),
         ("GE", GE_ELEMENTS[:-1], 2),
@@ -546,6 +620,34 @@ def test_parse_requires_exact_envelope_element_counts(
         ),
     ):
         parse_x12_interchange(document)
+
+
+def test_parse_requires_at_least_two_st_elements() -> None:
+    """ST01 and ST02 are required while later ST elements are optional."""
+    segments = minimal_valid_segments()
+    segments[2] = make_segment(2, "ST", TRANSACTION_SET_CODE)
+    document = build_document_from_segments(*segments)
+
+    with pytest.raises(
+        X12EnvelopeError,
+        match="ST segment at index 2 must contain at least 2 elements; found 1",
+    ):
+        parse_x12_interchange(document)
+
+
+def test_parse_preserves_optional_st_references() -> None:
+    """ST03 and ST04 should be preserved as generic structural values."""
+    payload = build_payload(
+        b"GS*XX*SENDER01*RECEIVER01*20260101*1200*1*X*007050~",
+        b"ST*999*0001*005010X231A1*008010~",
+        b"SE*2*0001~",
+        b"GE*1*1~",
+    )
+
+    transaction = parse_x12_interchange(tokenize_x12(payload)).groups[0].transactions[0]
+
+    assert transaction.implementation_convention_reference == b"005010X231A1"
+    assert transaction.overriding_version_release_reference == b"008010"
 
 
 def test_parse_requires_st01() -> None:
@@ -938,7 +1040,9 @@ def test_parse_rejects_incorrect_functional_group_count() -> None:
     """IEA01 must equal the number of parsed functional groups."""
     payload = build_payload(
         b"GS*XX*SENDER01*RECEIVER01*20260101*1200*1*X*007050~",
-        b"GE*0*1~",
+        b"ST*999*0001~",
+        b"SE*2*0001~",
+        b"GE*1*1~",
         declared_group_count=b"2",
     )
 

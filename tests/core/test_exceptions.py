@@ -1,5 +1,5 @@
 """
-tests/test_exceptions.py
+tests/core/test_exceptions.py
 
 Tests for the public X12 exception hierarchy.
 """
@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from x12.exceptions import (
+from x12.core.exceptions import (
     X12EnvelopeError,
     X12Error,
     X12SegmentError,

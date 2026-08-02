@@ -1,5 +1,5 @@
 """
-tests/test_sample_message.py
+tests/core/test_sample_message.py
 
 Tests for the complete generic X12 sample-message fixture.
 """

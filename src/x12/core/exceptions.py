@@ -1,5 +1,5 @@
 """
-src/x12/exceptions.py
+src/x12/core/exceptions.py
 
 Exception hierarchy for X12 parsing, tokenization, and envelope validation.
 """

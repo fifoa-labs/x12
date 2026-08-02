@@ -1,12 +1,10 @@
 """
-src/x12/parser.py
+src/x12/core/parser.py
 
 Parse tokenized ANSI X12 documents into validated interchange envelopes.
 """
 
 from __future__ import annotations
-
-from typing import TYPE_CHECKING
 
 from .envelopes import (
     X12FunctionalGroup,
@@ -15,8 +13,8 @@ from .envelopes import (
 )
 from .exceptions import X12EnvelopeError
 
-if TYPE_CHECKING:
-    from .segments import X12Document, X12Segment
+# Keep public annotations resolvable through ``typing.get_type_hints``.
+from .segments import X12Document, X12Segment  # noqa: TC001
 
 
 def parse_x12_interchange(document: X12Document) -> X12Interchange:
@@ -35,8 +33,14 @@ def parse_x12_interchange(document: X12Document) -> X12Interchange:
         expected=16,
     )
 
-    groups: list[X12FunctionalGroup] = []
+    interchange_segments: list[X12Segment] = []
     cursor = 1
+
+    while document.segments[cursor].tag == "TA1":
+        interchange_segments.append(document.segments[cursor])
+        cursor += 1
+
+    groups: list[X12FunctionalGroup] = []
 
     while True:
         segment = document.segments[cursor]
@@ -78,9 +82,17 @@ def parse_x12_interchange(document: X12Document) -> X12Interchange:
         header=header,
         groups=tuple(groups),
         trailer=trailer,
+        interchange_segments=tuple(interchange_segments),
     )
 
     _validate_interchange(interchange)
+
+    if not interchange_segments and not groups:
+        msg = (
+            "X12 interchange must contain at least one TA1 interchange "
+            "acknowledgment or functional group."
+        )
+        raise X12EnvelopeError(msg)
 
     return interchange
 
@@ -133,6 +145,13 @@ def _parse_functional_group(
 
     _validate_functional_group(group)
 
+    if not group.transactions:
+        msg = (
+            "X12 functional group beginning at segment index "
+            f"{header.index} must contain at least one transaction set."
+        )
+        raise X12EnvelopeError(msg)
+
     return group, cursor + 1
 
 
@@ -142,9 +161,9 @@ def _parse_transaction_set(
 ) -> tuple[X12TransactionSet, int]:
     """Parse one ST/SE-delimited transaction set."""
     header = segments[start]
-    _require_element_count(
+    _require_minimum_element_count(
         header,
-        expected=2,
+        minimum=2,
     )
 
     body: list[X12Segment] = []
@@ -158,6 +177,7 @@ def _parse_transaction_set(
 
         if segment.tag in {
             "ISA",
+            "TA1",
             "GS",
             "ST",
             "GE",
@@ -323,6 +343,22 @@ def _require_element_count(
         msg = (
             f"{segment.tag} segment at index {segment.index} must contain "
             f"exactly {expected} elements; found {actual}."
+        )
+        raise X12EnvelopeError(msg)
+
+
+def _require_minimum_element_count(
+    segment: X12Segment,
+    *,
+    minimum: int,
+) -> None:
+    """Require a segment to contain at least the given number of elements."""
+    actual = len(segment.elements)
+
+    if actual < minimum:
+        msg = (
+            f"{segment.tag} segment at index {segment.index} must contain "
+            f"at least {minimum} elements; found {actual}."
         )
         raise X12EnvelopeError(msg)
 

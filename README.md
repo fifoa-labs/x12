@@ -6,80 +6,36 @@
 [![Coverage](https://codecov.io/gh/fifoa-labs/x12/branch/main/graph/badge.svg)](https://codecov.io/gh/fifoa-labs/x12)
 [![License](https://img.shields.io/pypi/l/ansi-x12.svg)](https://github.com/fifoa-labs/x12/blob/main/LICENSE)
 
-A small, framework-independent Python library for lossless structural
-parsing of ANSI X12 Electronic Data Interchange documents.
+A small, framework-independent Python library for generic ANSI X12 structure.
 
-`x12` discovers interchange separators, tokenizes ANSI X12 messages,
-validates interchange envelope structure,and produces immutable inspection models
-without interpreting transaction-specific business semantics.
+`ansi-x12` discovers interchange separators, tokenizes raw byte payloads,
+validates X12 envelope structure, and produces immutable inspection models.
+It deliberately stops at the syntax and envelope layer: it does not interpret
+the business meaning of transaction sets, segments, qualifiers, or elements.
 
-## Project
-
--   **PyPI:** https://pypi.org/project/ansi-x12/
--   **Source:** https://github.com/fifoa-labs/x12
--   **License:** MIT
-
-## Status
-
-`ansi-x12` is actively maintained and publicly available on PyPI.
-
--   **PyPI:** https://pypi.org/project/ansi-x12/
--   **Source:** https://github.com/fifoa-labs/x12
-
-Install the latest release:
-
-``` bash
-pip install ansi-x12
-```
-
-The distribution name is `ansi-x12`, while the Python import package is
-`x12`.
-
-The current release provides the structural layer of ANSI X12:
-
--   separator discovery
--   lossless tokenization
--   immutable segment models
--   ISA/GS/ST envelope parsing
--   control-number validation
--   declared-count validation
--   structural inspection
-
-The package currently has:
-
--   no runtime dependencies
--   456 passing tests
--   100% statement coverage
--   100% branch coverage
--   full inline type annotations
+- **PyPI:** https://pypi.org/project/ansi-x12/
+- **Source:** https://github.com/fifoa-labs/x12
+- **License:** MIT
 
 ## Installation
 
 Install the latest release from PyPI:
 
-``` bash
+```bash
 pip install ansi-x12
 ```
 
-The distribution name is `ansi-x12`.
+The distribution name is `ansi-x12`; the Python import package is `x12`:
 
-Import it in Python:
-
-``` python
+```python
 import x12
 ```
 
-For local development:
-
-``` bash
-git clone https://github.com/fifoa-labs/x12.git
-cd x12
-uv sync --dev
-```
+The package has no runtime dependencies.
 
 ## Quick Start
 
-``` python
+```python
 from pathlib import Path
 
 from x12 import (
@@ -93,17 +49,80 @@ payload = Path("message.x12").read_bytes()
 document = tokenize_x12(payload)
 interchange = parse_x12_interchange(document)
 inspection = inspect_x12_interchange(interchange)
+
+print(interchange.control_number)
+print(inspection.transaction_set_codes)
+print(inspection.total_segment_count)
 ```
 
-The resulting objects are immutable and preserve the original
-byte-oriented structure of the interchange.
+The parser accepts `bytes`, preserves the original source payload on
+`X12Document.raw`, and returns immutable structural models.
 
-## Core Design
+## Scope
 
-The package is intentionally layered:
+The current package provides the generic structural layer of ANSI X12:
 
-``` text
-Raw bytes
+- separator discovery from the fixed-width ISA segment;
+- byte-oriented tokenization;
+- immutable segment and document models;
+- ISA/IEA interchange parsing;
+- TA1 interchange acknowledgment support;
+- GS/GE functional-group parsing;
+- ST/SE transaction-set parsing;
+- envelope ordering and nesting validation;
+- control-number validation;
+- declared-count validation;
+- structural inspection and segment inventories;
+- inline type information through `py.typed`.
+
+It remains transaction-set agnostic and trading-partner agnostic.
+
+## What `x12` Does
+
+`x12` handles concerns that are common to X12 interchanges regardless of the
+transaction-set type:
+
+- derives the element, repetition, component, and segment separators;
+- supports non-default separator bytes;
+- preserves empty positional elements;
+- preserves element values as raw bytes;
+- retains original document bytes and source segment order;
+- assigns contiguous, zero-based segment indexes;
+- exposes one-based X12 element access;
+- organizes a flat segment stream into immutable envelope models;
+- validates envelope boundaries and nesting;
+- validates matching ISA13/IEA02, GS06/GE02, and ST02/SE02 values;
+- validates IEA01, GE01, and SE01 declared counts;
+- preserves optional ST03 and ST04 references;
+- supports TA1-only interchanges and TA1 segments before functional groups;
+- rejects empty functional groups;
+- produces transaction, group, segment, and frequency summaries.
+
+## What `x12` Does Not Do
+
+`x12` does not interpret business semantics.
+
+It does not:
+
+- decide that transaction set `850` is a purchase order;
+- interpret transaction-specific segment or qualifier meanings;
+- validate implementation-guide or companion-guide rules;
+- map X12 data into application or database models;
+- manage trading-partner profiles;
+- persist data;
+- send messages through AS2, SFTP, APIs, or another transport;
+- depend on Django, Flask, FastAPI, or another application framework.
+
+A future transaction layer may understand an X12 `850`, `810`, or `856`.
+That layer will build on the generic structures in `x12.core` and live under
+`x12.transactions`.
+
+## Architecture
+
+The package is organized into distinct layers:
+
+```text
+Raw X12 bytes
     │
     ▼
 Separator discovery
@@ -112,118 +131,46 @@ Separator discovery
 Tokenizer
     │
     ▼
-Immutable segment document
+X12Document and X12Segment
     │
     ▼
-Envelope parser
+Envelope parser and structural validation
     │
     ▼
-Validated interchange
+X12Interchange
     │
     ▼
-Structural inspector
+Structural inspection
 ```
 
-Each layer has one responsibility and can be used independently.
+The Python package mirrors that separation:
 
-## Design Goals
-
--   ANSI X12 generic
--   transaction-set agnostic
--   trading-partner agnostic
--   framework independent
--   lossless
--   deterministic
--   immutable
--   byte-oriented
--   fully typed
--   easy to audit
--   thoroughly tested
-
-## What `x12` Does
-
-`x12` handles structural concerns common to ANSI X12 interchanges:
-
--   Reads separator characters from the fixed-width ISA segment
--   Supports custom element, repetition, component, and segment
-    separators
--   Preserves empty positional elements
--   Preserves element values as raw bytes
--   Preserves source segment order
--   Builds immutable document and envelope models
--   Parses ISA/IEA interchange envelopes
--   Parses GS/GE functional groups
--   Parses ST/SE transaction sets
--   Validates envelope boundary ordering
--   Validates matching control numbers
--   Validates declared group, transaction, and segment counts
--   Produces structural inventories and segment-frequency summaries
-
-## What `x12` Does Not Do
-
-`x12` intentionally does not interpret business semantics.
-
-It does not:
-
--   interpret specific transaction sets
--   map application fields
--   understand industry workflows
--   persist data
--   perform database operations
--   depend on Django, Flask, FastAPI, or another framework
--   validate implementation-guide-specific business rules
--   convert transaction content into domain models
-
-For example, `x12` can identify and validate a transaction set whose
-ST01 value is `322`, but it does not interpret the meaning of its `Q5`,
-`N7`, `R4`, or other business segments.
-
-Higher-level packages should build transaction-specific behavior on top
-of the structural models provided here.
-
-## Package Layout
-
-``` text
-x12/
-├── src/
-│   └── x12/
-│       ├── __init__.py
-│       ├── envelopes.py
-│       ├── exceptions.py
-│       ├── inspection.py
-│       ├── inspector.py
-│       ├── parser.py
-│       ├── py.typed
-│       ├── segments.py
-│       ├── separators.py
-│       └── tokenizer.py
-├── tests/
-│   ├── fixtures/
-│   │   └── sample_message
-│   ├── test_envelopes.py
-│   ├── test_exceptions.py
-│   ├── test_init.py
-│   ├── test_inspection.py
-│   ├── test_inspector.py
-│   ├── test_parser.py
-│   ├── test_sample_message.py
-│   ├── test_segments.py
-│   ├── test_separators.py
-│   └── test_tokenizer.py
-├── LICENSE
-├── Makefile
-├── README.md
-├── pyproject.toml
-└── uv.lock
+```text
+x12
+├── __init__.py          Curated public API
+├── py.typed             PEP 561 type marker
+├── core/                Generic X12 syntax and envelope infrastructure
+└── transactions/        Reserved transaction-specific layer
 ```
 
-## Module Responsibilities
+Dependency direction is intentional:
 
-### `separators.py`
+```text
+x12.transactions  →  x12.core
+x12.core          ✕  x12.transactions
+```
 
-Discovers control characters from the fixed-width ISA header.
+The core must remain usable without loading or understanding transaction
+definitions.
 
-``` python
+## Core Models
+
+### Separators
+
+`derive_x12_separators()` reads the separator bytes from the fixed-width ISA
+segment:
+
+```python
 from x12 import derive_x12_separators
 
 separators = derive_x12_separators(payload)
@@ -234,50 +181,36 @@ print(separators.component)
 print(separators.segment)
 ```
 
-The returned `X12Separators` object contains:
+`X12Separators` contains:
 
--   `element`
--   `repetition`
--   `component`
--   `segment`
+- `element`
+- `repetition`
+- `component`
+- `segment`
 
-For interchange version `00402` and later, ISA11 is exposed as the
-repetition separator. Earlier versions return `None` for `repetition`.
+For interchange version `00402` and later, ISA11 is exposed as the repetition
+separator. Earlier versions expose `None` for `repetition`.
 
-### `tokenizer.py`
+### Segments and Documents
 
-Converts raw X12 bytes into an immutable `X12Document`.
+`tokenize_x12()` converts raw bytes into an immutable `X12Document`:
 
-``` python
+```python
 from x12 import tokenize_x12
 
 document = tokenize_x12(payload)
 ```
 
-The tokenizer:
+Each `X12Segment` contains:
 
--   derives separators from ISA
--   splits the payload into segments
--   preserves empty elements
--   preserves raw element bytes
--   preserves segment order
--   assigns contiguous zero-based segment indexes
--   ignores permitted formatting whitespace between segments
--   rejects malformed segment identifiers
--   rejects incomplete documents
+- a zero-based source index;
+- an ASCII segment tag;
+- ordered raw-byte elements;
+- the raw segment bytes.
 
-It performs no transaction-specific interpretation.
+Element access uses one-based X12 positions:
 
-### `segments.py`
-
-Defines the core tokenized models:
-
--   `X12Segment`
--   `X12Document`
-
-A segment exposes its elements using one-based X12 positions:
-
-``` python
+```python
 segment = document.find_segments("ST")[0]
 
 assert segment.element(1) == b"999"
@@ -285,132 +218,111 @@ assert segment.element(2) == b"0001"
 assert segment.element(3) is None
 ```
 
-Empty and missing elements are distinct:
+Empty and missing values remain distinct:
 
-``` python
+```python
 assert segment.element(1) == b""
 assert segment.element(20) is None
 ```
 
-`X12Document` supports direct iteration and length:
+Documents support iteration and length:
 
-``` python
+```python
 for segment in document:
     print(segment.index, segment.tag)
 
 print(len(document))
 ```
 
-### `envelopes.py`
+The tokenizer ignores permitted formatting whitespace between segments while
+retaining the complete original payload in `document.raw`.
 
-Defines immutable envelope models:
+### Envelopes
 
--   `X12TransactionSet`
--   `X12FunctionalGroup`
--   `X12Interchange`
-
-These objects organize the flat token stream into the standard X12
+`parse_x12_interchange()` converts a tokenized document into a validated
 envelope hierarchy:
 
-``` text
-ISA
-└── GS
-    └── ST
-        ├── transaction body
-        └── SE
-    └── GE
-└── IEA
-```
-
-They expose convenience properties for common envelope values,
-including:
-
--   transaction-set code
--   envelope control numbers
--   implementation version
--   declared counts
--   actual counts
--   complete ordered segment collections
-
-### `parser.py`
-
-Converts an `X12Document` into a validated `X12Interchange`.
-
-``` python
+```python
 from x12 import parse_x12_interchange
 
 interchange = parse_x12_interchange(document)
 ```
 
-Validation includes:
+The resulting hierarchy is:
 
--   ISA as the first segment
--   IEA as the final segment
--   GS/GE functional-group boundaries
--   ST/SE transaction-set boundaries
--   exact envelope element counts
--   required envelope elements
--   matching ST02 and SE02
--   matching GS06 and GE02
--   matching ISA13 and IEA02
--   SE01 transaction segment count
--   GE01 transaction-set count
--   IEA01 functional-group count
--   invalid nested envelope segments
+```text
+ISA
+├── TA1, when present
+├── GS
+│   ├── ST
+│   │   ├── transaction body
+│   │   └── SE
+│   └── GE
+└── IEA
+```
 
-The parser validates envelope structure only.
+The immutable envelope models are:
 
-### `inspection.py`
+- `X12TransactionSet`
+- `X12FunctionalGroup`
+- `X12Interchange`
 
-Defines immutable inspection result models:
+They expose common structural values such as control numbers, versions,
+declared counts, actual counts, ordered segment collections, and transaction
+set codes. They do not interpret transaction-specific content.
 
--   `X12SegmentFrequency`
--   `X12TransactionInspection`
--   `X12FunctionalGroupInspection`
--   `X12InspectionResult`
+### Structural Validation
 
-These models provide a stable representation of structural metadata and
-document inventories.
+The parser validates:
 
-### `inspector.py`
+- ISA as the first segment;
+- IEA as the final segment;
+- valid TA1 placement;
+- GS/GE functional-group boundaries;
+- ST/SE transaction-set boundaries;
+- required envelope elements;
+- envelope element counts;
+- invalid nested envelope segments;
+- matching ST02 and SE02 values;
+- matching GS06 and GE02 values;
+- matching ISA13 and IEA02 values;
+- SE01 transaction segment counts;
+- GE01 transaction-set counts;
+- IEA01 functional-group counts;
+- at least one transaction set in each functional group;
+- at least one TA1 acknowledgment or functional group in an interchange.
 
-Builds an `X12InspectionResult` from a validated interchange.
+### Inspection
 
-``` python
+`inspect_x12_interchange()` builds an immutable
+`X12InspectionResult` from a validated interchange:
+
+```python
 from x12 import inspect_x12_interchange
 
 inspection = inspect_x12_interchange(interchange)
-```
 
-Inspection data includes:
-
--   interchange version
--   interchange control number
--   usage indicator
--   separators
--   functional groups
--   transaction-set codes
--   transaction counts
--   segment counts
--   ordered segment tags
--   unique segment tags
--   repeating segment tags
--   segment frequencies
-
-Example:
-
-``` python
 print(inspection.transaction_set_codes)
 print(inspection.total_segment_count)
 print(inspection.unique_segment_tags)
 print(inspection.repeating_segment_tags)
 ```
 
+Inspection models include:
+
+- `X12SegmentFrequency`
+- `X12TransactionInspection`
+- `X12FunctionalGroupInspection`
+- `X12InspectionResult`
+
+Inspection reports structural metadata only. They do not interpret business
+content.
+
 ## Public API
 
-The main package-level imports are:
+Normal users should import from the package root:
 
-``` python
+```python
 from x12 import (
     X12Document,
     X12EnvelopeError,
@@ -436,7 +348,7 @@ from x12 import (
 
 Most applications only need:
 
-``` python
+```python
 from x12 import (
     inspect_x12_interchange,
     parse_x12_interchange,
@@ -444,9 +356,12 @@ from x12 import (
 )
 ```
 
+Implementation modules are organized under `x12.core`. The root `x12` package
+is the curated public surface and should be preferred by application code.
+
 ## Exception Hierarchy
 
-``` text
+```text
 X12Error
 ├── X12EnvelopeError
 │   └── X12SeparatorError
@@ -454,9 +369,9 @@ X12Error
     └── X12SegmentError
 ```
 
-Example:
+Catch `X12Error` when all structural failures should be handled together:
 
-``` python
+```python
 from x12 import X12Error
 
 try:
@@ -466,967 +381,265 @@ except X12Error as exc:
     print(f"Invalid X12 document: {exc}")
 ```
 
-Use the specialized exception types when callers need to distinguish
-between separator, tokenizer, segment, and envelope failures.
+Use a specialized subclass when the caller must distinguish separator,
+tokenizer, segment, or envelope failures.
 
 ## Byte-Oriented API
 
-The public parsing API accepts `bytes`, not text strings.
+The parsing API accepts `bytes`, not text strings:
 
-``` python
-payload = path.read_bytes()
+```python
+payload = Path("message.x12").read_bytes()
 document = tokenize_x12(payload)
 ```
 
-This is intentional.
+This is intentional. X12 separators are single-byte structural values, and
+the ISA separator positions are fixed byte offsets. A byte-oriented API avoids
+accidental decoding, normalization, or whitespace changes before structural
+processing is complete.
 
-X12 separators are single-byte structural values, and fixed-width ISA
-offsets are defined at the byte level. Keeping the parser byte-oriented
-avoids accidental decoding, normalization, or whitespace changes before
-structural parsing is complete.
-
-Applications may decode individual elements later using the encoding
-appropriate for their trading partner or implementation guide.
+Applications may decode individual element values later using the character
+encoding required by their implementation guide or trading partner.
 
 ## Immutability
 
-All core models are frozen dataclasses with slots.
-
-This includes:
-
--   separators
--   segments
--   documents
--   transaction sets
--   functional groups
--   interchanges
--   inspection results
+Core and inspection models are frozen dataclasses with slots.
 
 Immutability makes parsed results:
 
--   deterministic
--   hashable
--   safe to share
--   difficult to modify accidentally
--   easier to reason about during validation and testing
+- deterministic;
+- hashable;
+- safe to share;
+- resistant to accidental modification;
+- easier to validate, test, and audit.
+
+Construction and serialization will use explicit APIs rather than mutating
+parsed objects in place.
 
 ## Type Information
 
-The package ships with a `py.typed` marker and inline type annotations.
+The wheel includes a `py.typed` marker and inline annotations. Type checkers can
+consume the installed package directly:
 
-Type checkers can use the installed package directly:
-
-``` python
+```python
 from x12 import X12Interchange, parse_x12_interchange
 ```
 
 The project is checked with mypy in strict mode.
 
-## Development
-
-This project uses:
-
--   uv
--   pytest
--   pytest-cov
--   pytest-xdist
--   Ruff
--   mypy
--   build
--   Twine
-
-Install development dependencies:
-
-``` bash
-make sync
-```
-
-Run the test suite:
-
-``` bash
-make test
-```
-
-Run tests in parallel:
-
-``` bash
-make test-fast
-```
-
-Run coverage:
-
-``` bash
-make coverage
-```
-
-Run linting:
-
-``` bash
-make lint
-```
-
-Check formatting:
-
-``` bash
-make format-check
-```
-
-Apply formatting and safe fixes:
-
-``` bash
-make format
-```
-
-Run type checking:
-
-``` bash
-make typecheck
-```
-
-Run the complete local validation suite:
-
-``` bash
-make check
-```
-
-Run the complete release validation:
-
-``` bash
-make release-check
-```
-
-## Testing
-
-The test suite covers:
-
--   separator extraction
--   custom separators
--   legacy and modern ISA versions
--   malformed fixed-width ISA segments
--   lossless tokenization
--   empty positional elements
--   inter-segment formatting whitespace
--   invalid segment identifiers
--   immutable model invariants
--   envelope ordering
--   missing envelope boundaries
--   nested envelope failures
--   envelope control-number matching
--   declared-count validation
--   inspection summaries
--   segment-frequency ordering
--   generic complete-message fixture parsing
--   package public API exports
--   wheel-safe type metadata
-
-Current release quality (v0.1.2):
-
-``` text
-456 tests passed
-597 statements covered
-158 branches covered
-100% statement coverage
-100% branch coverage
-```
-
-The test fixture is synthetic and generic. It contains no production
-customer, carrier, location, phone, shipment, or equipment information.
-
-## Building the Package
-
-Build both the source distribution and wheel:
-
-``` bash
-make build
-```
-
-Validate distribution metadata:
-
-``` bash
-make check-dist
-```
-
-Inspect the wheel contents:
-
-``` bash
-make wheel-contents
-```
-
-Install the wheel into a temporary clean environment:
-
-``` bash
-make install-wheel
-```
-
-Releases are published automatically through GitHub Actions using PyPI
-Trusted Publishing.
-
-The built wheel should include:
-
-``` text
-x12/__init__.py
-x12/envelopes.py
-x12/exceptions.py
-x12/inspection.py
-x12/inspector.py
-x12/parser.py
-x12/py.typed
-x12/segments.py
-x12/separators.py
-x12/tokenizer.py
-```
-
-It should not include tests, development caches, coverage data, or
-application-specific code.
-
-## Extension Guidelines
-
-Future additions may include:
-
--   serialization
--   message builders
--   diagnostic formatting
--   pretty printing
--   streaming tokenization
--   implementation-guide extension interfaces
-
-Any addition to the core package should remain:
-
--   generic
--   structural
--   deterministic
--   framework independent
--   transaction-set agnostic
-
-Transaction-specific parsers should live in separate packages or
-higher-level application layers.
-
-## Guiding Principle
-
-If a feature requires knowing what a segment means, it does not belong
-in the core `x12` package.
-
-The core library understands structure.
-
-Higher-level integrations understand meaning.
-
-## License
-
-MIT
-
-------------------------------------------------------------------------
-
-Built and maintained by **Fifoa Labs**.
-
-
-A small, framework-independent Python library for lossless structural
-parsing of ANSI X12 Electronic Data Interchange documents.
-
-`x12` discovers interchange separators, tokenizes raw messages,
-validates envelope structure, and produces immutable inspection
-summaries without interpreting transaction-specific business meaning.
-
-## Project
-
--   **PyPI:** https://pypi.org/project/ansi-x12/
--   **Source:** https://github.com/fifoa-labs/x12
--   **License:** MIT
-
-## Status
-
-`ansi-x12` is actively maintained and publicly available on PyPI.
-
--   **PyPI:** https://pypi.org/project/ansi-x12/
--   **Source:** https://github.com/fifoa-labs/x12
-
-Install the latest release:
-
-``` bash
-pip install ansi-x12
-```
-
-The distribution name is `ansi-x12`, while the Python import package is
-`x12`.
-
-The current release provides the structural layer of ANSI X12:
-
--   separator discovery
--   lossless tokenization
--   immutable segment models
--   ISA/GS/ST envelope parsing
--   control-number validation
--   declared-count validation
--   structural inspection
-
-The package currently has:
-
--   no runtime dependencies
--   456 passing tests
--   100% statement coverage
--   100% branch coverage
--   full inline type annotations
-
-## Installation
-
-Install the latest release from PyPI:
-
-``` bash
-pip install ansi-x12
-```
-
-The distribution name is `ansi-x12`.
-
-Import it in Python:
-
-``` python
-import x12
-```
-
-For local development:
-
-``` bash
-git clone https://github.com/fifoa-labs/x12.git
-cd x12
-uv sync --dev
-```
-
-## Quick Start
-
-``` python
-from pathlib import Path
-
-from x12 import (
-    inspect_x12_interchange,
-    parse_x12_interchange,
-    tokenize_x12,
-)
-
-payload = Path("message.x12").read_bytes()
-
-document = tokenize_x12(payload)
-interchange = parse_x12_interchange(document)
-inspection = inspect_x12_interchange(interchange)
-```
-
-The resulting objects are immutable and preserve the original
-byte-oriented structure of the interchange.
-
-## Core Design
-
-The package is intentionally layered:
-
-``` text
-Raw bytes
-    │
-    ▼
-Separator discovery
-    │
-    ▼
-Tokenizer
-    │
-    ▼
-Immutable segment document
-    │
-    ▼
-Envelope parser
-    │
-    ▼
-Validated interchange
-    │
-    ▼
-Structural inspector
-```
-
-Each layer has one responsibility and can be used independently.
-
-## Design Goals
-
--   ANSI X12 generic
--   transaction-set agnostic
--   trading-partner agnostic
--   framework independent
--   lossless
--   deterministic
--   immutable
--   byte-oriented
--   fully typed
--   easy to audit
--   thoroughly tested
-
-## What `x12` Does
-
-`x12` handles structural concerns common to ANSI X12 interchanges:
-
--   Reads separator characters from the fixed-width ISA segment
--   Supports custom element, repetition, component, and segment
-    separators
--   Preserves empty positional elements
--   Preserves element values as raw bytes
--   Preserves source segment order
--   Builds immutable document and envelope models
--   Parses ISA/IEA interchange envelopes
--   Parses GS/GE functional groups
--   Parses ST/SE transaction sets
--   Validates envelope boundary ordering
--   Validates matching control numbers
--   Validates declared group, transaction, and segment counts
--   Produces structural inventories and segment-frequency summaries
-
-## What `x12` Does Not Do
-
-`x12` intentionally does not interpret business semantics.
-
-It does not:
-
--   interpret specific transaction sets
--   map application fields
--   understand industry workflows
--   persist data
--   perform database operations
--   depend on Django, Flask, FastAPI, or another framework
--   validate implementation-guide-specific business rules
--   convert transaction content into domain models
-
-For example, `x12` can identify and validate a transaction set whose
-ST01 value is `322`, but it does not interpret the meaning of its `Q5`,
-`N7`, `R4`, or other business segments.
-
-Higher-level packages should build transaction-specific behavior on top
-of the structural models provided here.
-
 ## Package Layout
 
-``` text
-x12/
+```text
+.
+├── .github/
+│   └── workflows/
+│       ├── ci.yml
+│       └── publish.yml
+├── docs/
 ├── src/
 │   └── x12/
 │       ├── __init__.py
-│       ├── envelopes.py
-│       ├── exceptions.py
-│       ├── inspection.py
-│       ├── inspector.py
-│       ├── parser.py
 │       ├── py.typed
-│       ├── segments.py
-│       ├── separators.py
-│       └── tokenizer.py
+│       ├── core/
+│       │   ├── __init__.py
+│       │   ├── envelopes.py
+│       │   ├── exceptions.py
+│       │   ├── inspection.py
+│       │   ├── inspector.py
+│       │   ├── parser.py
+│       │   ├── segments.py
+│       │   ├── separators.py
+│       │   └── tokenizer.py
+│       └── transactions/
+│           └── __init__.py
 ├── tests/
-│   ├── fixtures/
-│   │   └── sample_message
-│   ├── test_envelopes.py
-│   ├── test_exceptions.py
-│   ├── test_init.py
-│   ├── test_inspection.py
-│   ├── test_inspector.py
-│   ├── test_parser.py
-│   ├── test_sample_message.py
-│   ├── test_segments.py
-│   ├── test_separators.py
-│   └── test_tokenizer.py
+│   ├── core/
+│   │   ├── fixtures/
+│   │   │   └── sample_message
+│   │   ├── test_envelopes.py
+│   │   ├── test_exceptions.py
+│   │   ├── test_inspection.py
+│   │   ├── test_inspector.py
+│   │   ├── test_parser.py
+│   │   ├── test_sample_message.py
+│   │   ├── test_segments.py
+│   │   ├── test_separators.py
+│   │   └── test_tokenizer.py
+│   └── test_public_api.py
 ├── LICENSE
 ├── Makefile
 ├── README.md
+├── RELEASING.md
 ├── pyproject.toml
 └── uv.lock
 ```
 
-## Module Responsibilities
-
-### `separators.py`
-
-Discovers control characters from the fixed-width ISA header.
-
-``` python
-from x12 import derive_x12_separators
-
-separators = derive_x12_separators(payload)
-
-print(separators.element)
-print(separators.repetition)
-print(separators.component)
-print(separators.segment)
-```
-
-The returned `X12Separators` object contains:
-
--   `element`
--   `repetition`
--   `component`
--   `segment`
-
-For interchange version `00402` and later, ISA11 is exposed as the
-repetition separator. Earlier versions return `None` for `repetition`.
-
-### `tokenizer.py`
-
-Converts raw X12 bytes into an immutable `X12Document`.
-
-``` python
-from x12 import tokenize_x12
-
-document = tokenize_x12(payload)
-```
-
-The tokenizer:
-
--   derives separators from ISA
--   splits the payload into segments
--   preserves empty elements
--   preserves raw element bytes
--   preserves segment order
--   assigns contiguous zero-based segment indexes
--   ignores permitted formatting whitespace between segments
--   rejects malformed segment identifiers
--   rejects incomplete documents
-
-It performs no transaction-specific interpretation.
-
-### `segments.py`
-
-Defines the core tokenized models:
-
--   `X12Segment`
--   `X12Document`
-
-A segment exposes its elements using one-based X12 positions:
-
-``` python
-segment = document.find_segments("ST")[0]
-
-assert segment.element(1) == b"999"
-assert segment.element(2) == b"0001"
-assert segment.element(3) is None
-```
-
-Empty and missing elements are distinct:
-
-``` python
-assert segment.element(1) == b""
-assert segment.element(20) is None
-```
-
-`X12Document` supports direct iteration and length:
-
-``` python
-for segment in document:
-    print(segment.index, segment.tag)
-
-print(len(document))
-```
-
-### `envelopes.py`
-
-Defines immutable envelope models:
-
--   `X12TransactionSet`
--   `X12FunctionalGroup`
--   `X12Interchange`
-
-These objects organize the flat token stream into the standard X12
-envelope hierarchy:
-
-``` text
-ISA
-└── GS
-    └── ST
-        ├── transaction body
-        └── SE
-    └── GE
-└── IEA
-```
-
-They expose convenience properties for common envelope values,
-including:
-
--   transaction-set code
--   envelope control numbers
--   implementation version
--   declared counts
--   actual counts
--   complete ordered segment collections
-
-### `parser.py`
-
-Converts an `X12Document` into a validated `X12Interchange`.
-
-``` python
-from x12 import parse_x12_interchange
-
-interchange = parse_x12_interchange(document)
-```
-
-Validation includes:
-
--   ISA as the first segment
--   IEA as the final segment
--   GS/GE functional-group boundaries
--   ST/SE transaction-set boundaries
--   exact envelope element counts
--   required envelope elements
--   matching ST02 and SE02
--   matching GS06 and GE02
--   matching ISA13 and IEA02
--   SE01 transaction segment count
--   GE01 transaction-set count
--   IEA01 functional-group count
--   invalid nested envelope segments
-
-The parser validates envelope structure only.
-
-### `inspection.py`
-
-Defines immutable inspection result models:
-
--   `X12SegmentFrequency`
--   `X12TransactionInspection`
--   `X12FunctionalGroupInspection`
--   `X12InspectionResult`
-
-These models provide a stable representation of structural metadata and
-document inventories.
-
-### `inspector.py`
-
-Builds an `X12InspectionResult` from a validated interchange.
-
-``` python
-from x12 import inspect_x12_interchange
-
-inspection = inspect_x12_interchange(interchange)
-```
-
-Inspection data includes:
-
--   interchange version
--   interchange control number
--   usage indicator
--   separators
--   functional groups
--   transaction-set codes
--   transaction counts
--   segment counts
--   ordered segment tags
--   unique segment tags
--   repeating segment tags
--   segment frequencies
-
-Example:
-
-``` python
-print(inspection.transaction_set_codes)
-print(inspection.total_segment_count)
-print(inspection.unique_segment_tags)
-print(inspection.repeating_segment_tags)
-```
-
-## Public API
-
-The main package-level imports are:
-
-``` python
-from x12 import (
-    X12Document,
-    X12EnvelopeError,
-    X12Error,
-    X12FunctionalGroup,
-    X12FunctionalGroupInspection,
-    X12InspectionResult,
-    X12Interchange,
-    X12Segment,
-    X12SegmentError,
-    X12SegmentFrequency,
-    X12SeparatorError,
-    X12Separators,
-    X12TokenizerError,
-    X12TransactionInspection,
-    X12TransactionSet,
-    derive_x12_separators,
-    inspect_x12_interchange,
-    parse_x12_interchange,
-    tokenize_x12,
-)
-```
-
-Most applications only need:
-
-``` python
-from x12 import (
-    inspect_x12_interchange,
-    parse_x12_interchange,
-    tokenize_x12,
-)
-```
-
-## Exception Hierarchy
-
-``` text
-X12Error
-├── X12EnvelopeError
-│   └── X12SeparatorError
-└── X12TokenizerError
-    └── X12SegmentError
-```
-
-Example:
-
-``` python
-from x12 import X12Error
-
-try:
-    document = tokenize_x12(payload)
-    interchange = parse_x12_interchange(document)
-except X12Error as exc:
-    print(f"Invalid X12 document: {exc}")
-```
-
-Use the specialized exception types when callers need to distinguish
-between separator, tokenizer, segment, and envelope failures.
-
-## Byte-Oriented API
-
-The public parsing API accepts `bytes`, not text strings.
-
-``` python
-payload = path.read_bytes()
-document = tokenize_x12(payload)
-```
-
-This is intentional.
-
-X12 separators are single-byte structural values, and fixed-width ISA
-offsets are defined at the byte level. Keeping the parser byte-oriented
-avoids accidental decoding, normalization, or whitespace changes before
-structural parsing is complete.
-
-Applications may decode individual elements later using the encoding
-appropriate for their trading partner or implementation guide.
-
-## Immutability
-
-All core models are frozen dataclasses with slots.
-
-This includes:
-
--   separators
--   segments
--   documents
--   transaction sets
--   functional groups
--   interchanges
--   inspection results
-
-Immutability makes parsed results:
-
--   deterministic
--   hashable
--   safe to share
--   difficult to modify accidentally
--   easier to reason about during validation and testing
-
-## Type Information
-
-The package ships with a `py.typed` marker and inline type annotations.
-
-Type checkers can use the installed package directly:
-
-``` python
-from x12 import X12Interchange, parse_x12_interchange
-```
-
-The project is checked with mypy in strict mode.
+## Current Limitations
+
+The project is intentionally focused and does not yet provide:
+
+- serialization of structured models back to X12 bytes;
+- builders for creating new interchanges;
+- automatic envelope or control-number generation;
+- streaming tokenization;
+- length-aware BIN segment parsing;
+- ISX release-character support;
+- transaction-specific models;
+- implementation-guide or trading-partner validation.
+
+These are explicit boundaries, not hidden behavior. Features will be added only
+when they can preserve the package's generic and deterministic core.
 
 ## Development
 
-This project uses:
+The project uses:
 
--   uv
--   pytest
--   pytest-cov
--   pytest-xdist
--   Ruff
--   mypy
--   build
--   Twine
+- uv
+- pytest
+- pytest-cov
+- pytest-xdist
+- Ruff
+- mypy
+- build
+- Twine
 
-Install development dependencies:
+Clone and install development dependencies:
 
-``` bash
+```bash
+git clone https://github.com/fifoa-labs/x12.git
+cd x12
 make sync
 ```
 
-Run the test suite:
+Common commands:
 
-``` bash
-make test
+```bash
+make format          # Apply formatting and safe fixes
+make format-check    # Check formatting
+make lint            # Run Ruff linting
+make typecheck       # Run strict mypy checks
+make test            # Run the test suite
+make test-fast       # Run tests in parallel
+make coverage        # Run statement and branch coverage
+make check           # Run normal local validation
+make release-check   # Run full release validation and build checks
 ```
 
-Run tests in parallel:
-
-``` bash
-make test-fast
-```
-
-Run coverage:
-
-``` bash
-make coverage
-```
-
-Run linting:
-
-``` bash
-make lint
-```
-
-Check formatting:
-
-``` bash
-make format-check
-```
-
-Apply formatting and safe fixes:
-
-``` bash
-make format
-```
-
-Run type checking:
-
-``` bash
-make typecheck
-```
-
-Run the complete local validation suite:
-
-``` bash
-make check
-```
-
-Run the complete release validation:
-
-``` bash
-make release-check
-```
-
-## Testing
+## Testing and Quality
 
 The test suite covers:
 
--   separator extraction
--   custom separators
--   legacy and modern ISA versions
--   malformed fixed-width ISA segments
--   lossless tokenization
--   empty positional elements
--   inter-segment formatting whitespace
--   invalid segment identifiers
--   immutable model invariants
--   envelope ordering
--   missing envelope boundaries
--   nested envelope failures
--   envelope control-number matching
--   declared-count validation
--   inspection summaries
--   segment-frequency ordering
--   generic complete-message fixture parsing
--   package public API exports
--   wheel-safe type metadata
+- separator extraction and separator invariants;
+- custom separators;
+- legacy and modern ISA versions;
+- malformed fixed-width ISA segments;
+- byte-oriented tokenization;
+- empty positional elements;
+- inter-segment formatting whitespace;
+- invalid segment identifiers;
+- immutable model invariants;
+- envelope ordering and nesting;
+- TA1 interchange acknowledgments;
+- optional ST03 and ST04 references;
+- missing envelope boundaries;
+- empty functional-group rejection;
+- control-number matching;
+- declared-count validation;
+- inspection summaries;
+- segment-frequency ordering;
+- complete synthetic interchange fixtures;
+- public API exports;
+- runtime type-hint resolution;
+- wheel-safe type metadata.
 
-Current release quality (v0.1.2):
+The project requires 100% statement and branch coverage. The fixture corpus is
+synthetic and generic; it contains no production customer, carrier, shipment,
+location, phone, or equipment information.
 
-``` text
-456 tests passed
-597 statements covered
-158 branches covered
-100% statement coverage
-100% branch coverage
-```
+## Building and Releasing
 
-The test fixture is synthetic and generic. It contains no production
-customer, carrier, location, phone, shipment, or equipment information.
+Build the source distribution and wheel:
 
-## Building the Package
-
-Build both the source distribution and wheel:
-
-``` bash
+```bash
 make build
 ```
 
 Validate distribution metadata:
 
-``` bash
+```bash
 make check-dist
 ```
 
-Inspect the wheel contents:
+Inspect the wheel:
 
-``` bash
+```bash
 make wheel-contents
 ```
 
 Install the wheel into a temporary clean environment:
 
-``` bash
+```bash
 make install-wheel
 ```
 
-Releases are published automatically through GitHub Actions using PyPI
-Trusted Publishing.
+Run the complete release validation:
 
-The built wheel should include:
-
-``` text
-x12/__init__.py
-x12/envelopes.py
-x12/exceptions.py
-x12/inspection.py
-x12/inspector.py
-x12/parser.py
-x12/py.typed
-x12/segments.py
-x12/separators.py
-x12/tokenizer.py
+```bash
+make release-check
 ```
 
-It should not include tests, development caches, coverage data, or
-application-specific code.
+The wheel should contain:
 
-## Extension Guidelines
+```text
+x12/__init__.py
+x12/py.typed
+x12/core/
+x12/transactions/
+```
 
-Future additions may include:
+It should not contain tests, development caches, coverage files, local
+configuration, private fixtures, or application-specific code.
 
--   serialization
--   message builders
--   diagnostic formatting
--   pretty printing
--   streaming tokenization
--   implementation-guide extension interfaces
+Releases are published through GitHub Actions using PyPI Trusted Publishing.
+See [RELEASING.md](docs/RELEASING.md) for the complete procedure.
 
-Any addition to the core package should remain:
+## Roadmap
 
--   generic
--   structural
--   deterministic
--   framework independent
--   transaction-set agnostic
+Near-term core improvements:
 
-Transaction-specific parsers should live in separate packages or
-higher-level application layers.
+1. serialize validated interchanges back to X12 bytes;
+2. guarantee parse/serialize round trips;
+3. add explicit builders for segments, transactions, groups, and interchanges;
+4. calculate envelope counts and control values during construction;
+5. add structured validation reports and richer diagnostics;
+6. add length-aware BIN support;
+7. add streaming support where real workloads require it.
+
+Transaction-specific models will be added under `x12.transactions` only after
+they are driven by real implementation guides and trading-partner usage.
+
+## Extension Rules
+
+A contribution to `x12.core` should remain:
+
+- generic;
+- structural;
+- deterministic;
+- framework independent;
+- transaction-set agnostic;
+- trading-partner agnostic.
+
+If a feature requires knowing what a transaction, segment, qualifier, or
+element means, it belongs in `x12.transactions` or a higher application layer.
 
 ## Guiding Principle
 
-If a feature requires knowing what a segment means, it does not belong
-in the core `x12` package.
-
-The core library understands structure.
-
-Higher-level integrations understand meaning.
+> The core library understands X12 structure. Higher layers understand meaning.
 
 ## License
 
 MIT
 
-------------------------------------------------------------------------
+---
 
-Built and maintained by **Fifoa Labs**.
+Built and maintained by **FIFOA Labs**.

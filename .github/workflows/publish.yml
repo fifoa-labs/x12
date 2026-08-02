@@ -20,8 +20,20 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
 
+      - name: Verify release version
+        run: |
+          package_version="$(uv version --short)"
+          release_version="${GITHUB_REF_NAME#v}"
+
+          if [ "$package_version" != "$release_version" ]; then
+            echo "Package version: $package_version"
+            echo "Release version: $release_version"
+            echo "Release tag does not match pyproject.toml."
+            exit 1
+          fi
+
       - name: Build package
-        run: uv build
+        run: uv build --no-sources
 
       - name: Upload distributions
         uses: actions/upload-artifact@v7

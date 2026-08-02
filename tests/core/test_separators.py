@@ -1,5 +1,5 @@
 """
-tests/test_separators.py
+tests/core/test_separators.py
 
 Tests for X12 separator discovery and validation.
 """
@@ -10,11 +10,11 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from x12.exceptions import (
+from x12.core.exceptions import (
     X12EnvelopeError,
     X12SeparatorError,
 )
-from x12.separators import (
+from x12.core.separators import (
     ISA_COMPONENT_SEPARATOR_INDEX,
     ISA_ELEMENT_SEPARATOR_INDEX,
     ISA_ELEMENT_SEPARATOR_INDICES,

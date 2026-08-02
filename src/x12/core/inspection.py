@@ -1,5 +1,5 @@
 """
-src/x12/inspection.py
+src/x12/core/inspection.py
 
 Immutable structural inspection models for parsed ANSI X12 interchanges.
 """

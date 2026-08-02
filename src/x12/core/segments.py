@@ -1,18 +1,16 @@
 """
-src/x12/segments.py
+src/x12/core/segments.py
 
 Immutable structural models produced by the X12 tokenizer.
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterator  # noqa: TC003
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from collections.abc import Iterator
-
-    from .separators import X12Separators
+# Keep public annotations resolvable through ``typing.get_type_hints``.
+from .separators import X12Separators  # noqa: TC001
 
 
 @dataclass(frozen=True, slots=True)

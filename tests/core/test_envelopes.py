@@ -1,5 +1,5 @@
 """
-tests/test_envelopes.py
+tests/core/test_envelopes.py
 
 Tests for immutable X12 envelope models.
 """
@@ -10,13 +10,13 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from x12.envelopes import (
+from x12.core.envelopes import (
     X12FunctionalGroup,
     X12Interchange,
     X12TransactionSet,
 )
-from x12.segments import X12Document, X12Segment
-from x12.separators import X12Separators
+from x12.core.segments import X12Document, X12Segment
+from x12.core.separators import X12Separators
 
 
 @pytest.fixture
@@ -1282,3 +1282,44 @@ def test_interchange_comparison_includes_document(
     )
 
     assert changed != interchange
+
+
+def test_interchange_rejects_unsupported_interchange_level_segment(
+    separators: X12Separators,
+) -> None:
+    """Only supported interchange-level control segments may be supplied."""
+    header = X12Segment(
+        index=0,
+        tag="ISA",
+        elements=(),
+        raw=b"ISA",
+    )
+    unsupported = X12Segment(
+        index=1,
+        tag="N1",
+        elements=(b"SH",),
+        raw=b"N1*SH",
+    )
+    trailer = X12Segment(
+        index=2,
+        tag="IEA",
+        elements=(b"0", b"000000001"),
+        raw=b"IEA*0*000000001",
+    )
+    document = X12Document(
+        raw=b"ISA~N1*SH~IEA*0*000000001~",
+        separators=separators,
+        segments=(header, unsupported, trailer),
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="interchange-level segments must currently be TA1 segments",
+    ):
+        X12Interchange(
+            document=document,
+            header=header,
+            groups=(),
+            trailer=trailer,
+            interchange_segments=(unsupported,),
+        )

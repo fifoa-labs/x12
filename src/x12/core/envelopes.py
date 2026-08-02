@@ -1,5 +1,5 @@
 """
-src/x12/envelopes.py
+src/x12/core/envelopes.py
 
 Immutable structural models for parsed ANSI X12 envelopes.
 """
@@ -8,10 +8,9 @@ from __future__ import annotations
 
 import itertools
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from .segments import X12Document, X12Segment
+# Keep public annotations resolvable through ``typing.get_type_hints``.
+from .segments import X12Document, X12Segment  # noqa: TC001
 
 
 def _parse_count(value: bytes | None) -> int | None:
@@ -63,6 +62,16 @@ class X12TransactionSet:
     def control_number(self) -> bytes | None:
         """Return ST02, which identifies this transaction set."""
         return self.header.element(2)
+
+    @property
+    def implementation_convention_reference(self) -> bytes | None:
+        """Return optional ST03, the implementation-convention reference."""
+        return self.header.element(3)
+
+    @property
+    def overriding_version_release_reference(self) -> bytes | None:
+        """Return optional ST04, the overriding version/release reference."""
+        return self.header.element(4)
 
     @property
     def trailer_control_number(self) -> bytes | None:
@@ -184,12 +193,16 @@ class X12Interchange:
         header: Opening ISA segment.
         groups: Ordered functional groups within the interchange.
         trailer: Closing IEA segment.
+        interchange_segments: Ordered interchange-level segments between
+            ISA and the first functional group. The current parser supports
+            TA1 interchange acknowledgments in this position.
     """
 
     document: X12Document
     header: X12Segment
     groups: tuple[X12FunctionalGroup, ...]
     trailer: X12Segment
+    interchange_segments: tuple[X12Segment, ...] = ()
 
     def __post_init__(self) -> None:
         """Validate interchange boundaries, order, and source consistency."""
@@ -206,6 +219,14 @@ class X12Interchange:
                 f"found {self.trailer.tag!r}."
             )
             raise ValueError(msg)
+
+        for segment in self.interchange_segments:
+            if segment.tag != "TA1":
+                msg = (
+                    "X12 interchange-level segments must currently be TA1 "
+                    f"segments; found {segment.tag!r}."
+                )
+                raise ValueError(msg)
 
         all_segments = self.all_segments
         _validate_segment_order(all_segments, envelope_name="interchange")
@@ -282,6 +303,7 @@ class X12Interchange:
         """Return all interchange segments from ISA through IEA."""
         return (
             self.header,
+            *self.interchange_segments,
             *(segment for group in self.groups for segment in group.all_segments),
             self.trailer,
         )

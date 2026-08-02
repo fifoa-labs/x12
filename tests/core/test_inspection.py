@@ -1,5 +1,5 @@
 """
-tests/test_inspection.py
+tests/core/test_inspection.py
 
 Tests for immutable X12 structural inspection models.
 """
@@ -11,7 +11,7 @@ from typing import Any, cast
 
 import pytest
 
-from x12.inspection import (
+from x12.core.inspection import (
     X12FunctionalGroupInspection,
     X12InspectionResult,
     X12SegmentFrequency,

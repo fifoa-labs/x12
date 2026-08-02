@@ -1,5 +1,5 @@
 """
-tests/test_segments.py
+tests/core/test_segments.py
 
 Tests for immutable X12 segment and document models.
 """
@@ -10,8 +10,8 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from x12.segments import X12Document, X12Segment
-from x12.separators import X12Separators
+from x12.core.segments import X12Document, X12Segment
+from x12.core.separators import X12Separators
 
 
 @pytest.fixture

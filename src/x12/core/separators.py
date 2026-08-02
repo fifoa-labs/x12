@@ -1,5 +1,5 @@
 """
-src/x12/separators.py
+src/x12/core/separators.py
 
 Separator definitions and ISA-based separator discovery for ANSI X12 data.
 """

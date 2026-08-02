@@ -83,3 +83,38 @@ jobs:
           files: coverage.xml
           fail_ci_if_error: true
           use_oidc: true
+
+  package:
+    needs:
+      - quality
+      - test
+    name: Package validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.14"
+          enable-cache: true
+          cache-suffix: package
+
+      - name: Install dependencies
+        run: uv sync --dev --locked
+
+      - name: Build distributions
+        run: make build
+
+      - name: Validate distributions
+        run: make check-dist
+
+      - name: Verify typed wheel
+        run: |
+          wheel="$(find dist -maxdepth 1 -name '*.whl' -print -quit)"
+          unzip -l "$wheel" | grep -q "x12/py.typed"
+
+      - name: Install and import wheel
+        run: make install-wheel

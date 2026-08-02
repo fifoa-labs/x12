@@ -1,5 +1,5 @@
 """
-src/x12/inspector.py
+src/x12/core/inspector.py
 
 Build structural inspection summaries from validated ANSI X12 interchanges.
 """
@@ -7,23 +7,20 @@ Build structural inspection summaries from validated ANSI X12 interchanges.
 from __future__ import annotations
 
 from collections import Counter
-from typing import TYPE_CHECKING
+from collections.abc import Iterable  # noqa: TC003
 
+# Keep public annotations resolvable through ``typing.get_type_hints``.
+from .envelopes import (  # noqa: TC001
+    X12FunctionalGroup,
+    X12Interchange,
+    X12TransactionSet,
+)
 from .inspection import (
     X12FunctionalGroupInspection,
     X12InspectionResult,
     X12SegmentFrequency,
     X12TransactionInspection,
 )
-
-if TYPE_CHECKING:
-    from collections.abc import Iterable
-
-    from .envelopes import (
-        X12FunctionalGroup,
-        X12Interchange,
-        X12TransactionSet,
-    )
 
 
 def inspect_x12_interchange(

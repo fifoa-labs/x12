@@ -1,5 +1,5 @@
 """
-tests/test_tokenizer.py
+tests/core/test_tokenizer.py
 
 Tests for lossless X12 structural tokenization.
 """
@@ -8,13 +8,13 @@ from __future__ import annotations
 
 import pytest
 
-from x12.exceptions import (
+from x12.core.exceptions import (
     X12EnvelopeError,
     X12SegmentError,
     X12TokenizerError,
 )
-from x12.separators import ISA_SEGMENT_LENGTH
-from x12.tokenizer import tokenize_x12
+from x12.core.separators import ISA_SEGMENT_LENGTH
+from x12.core.tokenizer import tokenize_x12
 
 
 def build_isa_segment(

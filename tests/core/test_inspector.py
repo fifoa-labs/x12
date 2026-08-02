@@ -1,5 +1,5 @@
 """
-tests/test_inspector.py
+tests/core/test_inspector.py
 
 Tests for structural X12 interchange inspection services.
 """
@@ -12,16 +12,16 @@ from typing import TYPE_CHECKING
 import pytest
 
 from x12 import parse_x12_interchange, tokenize_x12
-from x12.inspection import (
+from x12.core.inspection import (
     X12FunctionalGroupInspection,
     X12InspectionResult,
     X12SegmentFrequency,
     X12TransactionInspection,
 )
-from x12.inspector import inspect_x12_interchange
+from x12.core.inspector import inspect_x12_interchange
 
 if TYPE_CHECKING:
-    from x12.envelopes import X12Interchange
+    from x12.core.envelopes import X12Interchange
 
 FIXTURES_DIRECTORY = Path(__file__).parent / "fixtures"
 SAMPLE_MESSAGE_FIXTURE = FIXTURES_DIRECTORY / "sample_message"
@@ -308,9 +308,13 @@ def test_inspector_numbers_groups_from_zero() -> None:
         (
             build_isa_segment(),
             b"GS*XX*SENDER01*RECEIVER01*20260101*1200*1*X*007050~",
-            b"GE*0*1~",
+            b"ST*999*0001~",
+            b"SE*2*0001~",
+            b"GE*1*1~",
             b"GS*XX*SENDER01*RECEIVER01*20260101*1300*2*X*007050~",
-            b"GE*0*2~",
+            b"ST*999*0002~",
+            b"SE*2*0002~",
+            b"GE*1*2~",
             b"IEA*2*000000001~",
         )
     )
@@ -355,11 +359,12 @@ def test_inspector_numbers_transactions_from_zero_per_group() -> None:
     ) == (0,)
 
 
-def test_inspector_supports_interchange_without_groups() -> None:
-    """An interchange without groups should produce an empty group summary."""
+def test_inspector_supports_ta1_only_interchange() -> None:
+    """A TA1-only interchange should produce an empty group summary."""
     payload = b"".join(
         (
             build_isa_segment(),
+            b"TA1*000000002*260101*1200*A*000~",
             b"IEA*0*000000001~",
         )
     )
@@ -370,16 +375,18 @@ def test_inspector_supports_interchange_without_groups() -> None:
     assert result.actual_group_count == 0
     assert result.total_transaction_count == 0
     assert result.transaction_set_codes == ()
-    assert result.total_segment_count == 2
+    assert result.total_segment_count == 3
 
 
-def test_inspector_supports_empty_functional_group() -> None:
-    """An empty functional group should have no transaction inspections."""
+def test_inspector_supports_minimal_functional_group() -> None:
+    """A minimal functional group should contain one transaction inspection."""
     payload = b"".join(
         (
             build_isa_segment(),
             b"GS*XX*SENDER01*RECEIVER01*20260101*1200*1*X*007050~",
-            b"GE*0*1~",
+            b"ST*999*0001~",
+            b"SE*2*0001~",
+            b"GE*1*1~",
             b"IEA*1*000000001~",
         )
     )
@@ -387,9 +394,10 @@ def test_inspector_supports_empty_functional_group() -> None:
     result = inspect_x12_interchange(parse_x12_interchange(tokenize_x12(payload)))
     group = result.groups[0]
 
-    assert group.transactions == ()
-    assert group.actual_transaction_count == 0
-    assert result.total_transaction_count == 0
+    assert len(group.transactions) == 1
+    assert group.actual_transaction_count == 1
+    assert result.total_transaction_count == 1
+    assert group.transactions[0].transaction_set_code == b"999"
 
 
 def test_inspector_returns_new_result_each_time(
